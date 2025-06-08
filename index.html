@@ -1,46 +1,113 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Draw on Canvas</title>
+  <title>Pixel Board</title>
   <style>
-    body { text-align: center; font-family: sans-serif; }
-    canvas { border: 1px solid #000; cursor: crosshair; }
+    body { text-align: center; font-family: Arial, sans-serif; }
+    #palette {
+      margin-bottom: 10px;
+    }
+    .color {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 1px solid #000;
+      cursor: pointer;
+      margin: 0 4px;
+    }
+    #canvas {
+      border: 1px solid black;
+      image-rendering: pixelated; /* makes pixels sharp */
+      cursor: crosshair;
+    }
   </style>
 </head>
 <body>
-  <h1>Draw Something!</h1>
-  <canvas id="canvas" width="600" height="400"></canvas>
-  <br/>
-  <button onclick="clearCanvas()">Clear</button>
+  <h1>Pixel Board 5000x5000</h1>
+
+  <div id="palette"></div>
+  <canvas id="canvas" width="500" height="500"></canvas>
+  <p>Click on canvas to place one pixel.</p>
+
   <script>
+    const paletteColors = ['#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00']; // black, red, green, blue, yellow
+    let selectedColor = paletteColors[0];
+
+    // Setup palette buttons
+    const paletteDiv = document.getElementById('palette');
+    paletteColors.forEach(color => {
+      const btn = document.createElement('div');
+      btn.className = 'color';
+      btn.style.backgroundColor = color;
+      btn.onclick = () => {
+        selectedColor = color;
+        // highlight selected
+        document.querySelectorAll('.color').forEach(c => c.style.borderColor = '#000');
+        btn.style.borderColor = '#FFF';
+      };
+      paletteDiv.appendChild(btn);
+    });
+    // Select first by default (highlight)
+    paletteDiv.firstChild.style.borderColor = '#FFF';
+
+    // Canvas setup
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    let drawing = false;
 
-    canvas.addEventListener('mousedown', () => drawing = true);
-    canvas.addEventListener('mouseup', () => drawing = false);
-    canvas.addEventListener('mouseout', () => drawing = false);
-    canvas.addEventListener('mousemove', draw);
+    // Scale to show a small portion of the big 5000x5000 board
+    const boardSize = 5000;
+    const visibleSize = 500; // canvas size in pixels
+    let offsetX = 0;
+    let offsetY = 0;
 
-    function draw(e) {
-      if (!drawing) return;
+    // We'll store pixel data in an object: keys as "x,y" and values as color
+    const pixels = {};
+
+    // Draw visible part of board
+    function drawBoard() {
+      ctx.clearRect(0, 0, visibleSize, visibleSize);
+      for (let x = 0; x < visibleSize; x++) {
+        for (let y = 0; y < visibleSize; y++) {
+          const boardX = x + offsetX;
+          const boardY = y + offsetY;
+          const key = `${boardX},${boardY}`;
+          if (pixels[key]) {
+            ctx.fillStyle = pixels[key];
+            ctx.fillRect(x, y, 1, 1);
+          }
+        }
+      }
+    }
+
+    // On click, drop one pixel at mouse position in board coords
+    canvas.addEventListener('click', (e) => {
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = 'black';
+      const x = Math.floor(e.clientX - rect.left);
+      const y = Math.floor(e.clientY - rect.top);
 
-      ctx.lineTo(x, y);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    }
+      const boardX = x + offsetX;
+      const boardY = y + offsetY;
 
-    function clearCanvas() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.beginPath();
-    }
+      if (boardX < 0 || boardX >= boardSize || boardY < 0 || boardY >= boardSize) return;
+
+      pixels[`${boardX},${boardY}`] = selectedColor;
+      drawBoard();
+    });
+
+    // Optional: simple arrow key panning
+    window.addEventListener('keydown', e => {
+      const panStep = 50;
+      switch(e.key) {
+        case 'ArrowUp': offsetY = Math.max(0, offsetY - panStep); break;
+        case 'ArrowDown': offsetY = Math.min(boardSize - visibleSize, offsetY + panStep); break;
+        case 'ArrowLeft': offsetX = Math.max(0, offsetX - panStep); break;
+        case 'ArrowRight': offsetX = Math.min(boardSize - visibleSize, offsetX + panStep); break;
+        default: return;
+      }
+      drawBoard();
+    });
+
+    drawBoard();
   </script>
 </body>
 </html>
